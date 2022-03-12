@@ -339,12 +339,27 @@ class Chassis(ChassisBase):
             status = self.sfp_event.check_sfp_status(port_dict, error_dict, timeout)
 
         if status:
+            self.reinit_sfps(port_dict)
             result_dict = {'sfp':port_dict}
             if error_dict:
                 result_dict['sfp_error'] = error_dict
             return True, result_dict
         else:
             return True, {'sfp':{}}
+
+    def reinit_sfps(self, port_dict):
+        """
+        Re-initialize SFP if there is any newly inserted SFPs
+        :param port_dict: SFP event data
+        :return:
+        """
+        from . import sfp
+        for index, status in port_dict.items():
+            if status == sfp.SFP_STATUS_INSERTED:
+                try:
+                    self._sfp_list[index - 1].reinit()
+                except Exception as e:
+                    logger.log_error("Fail to re-initialize SFP {} - {}".format(index, repr(e)))
 
     def _show_capabilities(self):
         """

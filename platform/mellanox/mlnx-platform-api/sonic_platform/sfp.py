@@ -211,6 +211,13 @@ class SFP(SfpOptoeBase):
                 logger.log_error('Failed to open SDK handle')
         return SFP.shared_sdk_handle
 
+    def reinit(self):
+        """
+        Re-initialize this SFP object when a new SFP inserted
+        :return:
+        """
+        self.refresh_xcvr_api()
+
     def get_presence(self):
         """
         Retrieves the presence of the device
