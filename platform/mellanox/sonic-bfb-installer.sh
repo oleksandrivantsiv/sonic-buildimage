@@ -16,6 +16,12 @@
 # limitations under the License.
 #
 
+declare -A rshim2dpu
+rshim2dpu["rshim0"]="dpu0"
+rshim2dpu["rshim1"]="dpu1"
+rshim2dpu["rshim2"]="dpu2"
+rshim2dpu["rshim3"]="dpu3"
+
 command_name="sonic-bfb-installer.sh"
 usage(){
     echo "Syntax: $command_name -b|--bfb <BFB_Image_Path> --rshim|-r <rshim1,..rshimN> --verbose|-v --config|-c <Options> --help|h"
@@ -29,22 +35,32 @@ usage(){
 
 bfb_install_call(){
     #Example:sudo bfb-install -b <full path to image> -r rshim<id>
+    local -r rshim=$1
     local result_file=$(mktemp "/tmp/result_file.XXXXX")
     trap "rm -f $result_file" EXIT
-    local cmd="timeout 300s bfb-install -b $2 -r $1 $appendix"
-    echo "Installing bfb image on DPU connected to $1 using $cmd"
-    local indicator="$1:"
+    local cmd="timeout 300s bfb-install -b $2 -r $rshim $appendix"
+    echo "Installing bfb image on DPU connected to $rshim using $cmd"
+    local indicator="$rshim:"
     eval "$cmd" > "$result_file" 2>&1 > >(while IFS= read -r line; do echo "$indicator $line"; done > "$result_file")
     local exit_status=$?
     if [ $exit_status  -ne 0 ]; then
-        echo "$1: Error: Installation failed on connected DPU!"
+        echo "$rshim: Error: Installation failed on connected DPU!"
     else
-        echo "$1: Installation Successful"
+        echo "$rshim: Installation Successful"
     fi
     if [ $exit_status -ne 0 ] ||[ $verbose = true ]; then
         cat "$result_file"
     fi
     rm -f $result_file
+
+    dpu=${rshim2dpu[$rshim]}
+    echo "$rshim: Resetting DPU $dpu"
+    cmd="dpuctl dpu-reset --force $dpu"
+    if [[ $verbose == true ]]; then
+        cmd="$cmd -v"
+    fi
+
+    eval $cmd
 }
 
 validate_rshim(){
